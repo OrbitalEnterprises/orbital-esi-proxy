@@ -1,0 +1,99 @@
+<div class="container-fluid">
+
+<div class="row col-wrap">
+  <div class="col-md-12">
+    <div id="intro-panel" class="panel panel-default">
+      <div class="panel-heading">
+        <h3 class="panel-title">EVE Swagger Interface (ESI) Proxy</h3>
+      </div>
+      <div class="panel-body col-extend">
+      Welcome to the ESI Proxy service!  The goal of this site is to provide access to the authenticated
+      endpoints of the ESI <strong>without</strong> requiring the usual OAuth authentication flow.
+      Some potential uses of this site:<p>
+      
+      <ul>
+      <li> Applications which can't or don't want to implement OAuth token refresh logic (e.g. non-interactive); and,
+      <li> Tools which don't support OAuth authentication for data sources (e.g. Google Sheets).
+      </ul>
+      
+      <h4 style="color: #cd830e">How does the proxy work?</h4>      
+      
+      The proxy provides the same Swagger-based interface used by the ESI servers, except that the 
+      usual OAuth authentication mechanism is replaced with a "key and hash" scheme similar to the
+      (deprecated) XML API.  That is, you can call the usual ESI endpoints on the proxy, but instead
+      of passing an authorization header with an access token, you instead pass two query arguments:<p>
+            
+      <ul>
+      <li><strong>esiProxyKey -</strong> a numeric key; and,
+      <li><strong>esiProxyHash -</strong> an alphanumeric string. 
+      </ul>
+      
+      The proxy uses these arguments to look up a properly refreshed access token which is then added to the call
+      and forwarded to the ESI servers.  The result of the ESI call is passed back to the proxy client.
+      As long as your access tokens are not revoked, you'll be able to use your key/hash pair to access
+      ESI endpoints.
+      
+      <h4 style="color: #cd830e">No OAuth?  Is this secure?</h4>
+      
+      The "key and hash" scheme used by the proxy is identical to the scheme used by the XML API endpoints
+      and has the same security weakness, namely that anyone who has a copy of your key and hash can access 
+      any of your authenticated ESI endpoints (using this proxy).
+      
+      There are two ways you can protect against unintended use:<p>
+      
+      <ol>
+      <li>You can choose to limit the set of ESI scopes accessible to a key/hash pair.  This is done at key creation time; or,
+      <li>You can set an expiry date on a key/hash pair which disables the pair after a specified date.
+      </ol>
+      
+      The proxy retains your access token and attempts to refresh it until the key/hash pair expires.  Any authorized third party 
+      application can do the same.  So the proxy is no more or less safe than other third party applications which ask you 
+      to authenticate scopes.  In case you're worried about your access token leaking, tokens can't be used without
+      the proxy's private application key which is stored at the server.
+      
+      Note that you don't need to rely on the proxy to revoke access.  You can revoke your access tokens at any time at the
+      <a href="https://community.eveonline.com/support/third-party-applications/">third party support site</a>.
+      
+      <h4 style="color: #cd830e">Sounds awesome!  How do I get started?</h4>
+      
+      You need to do two things to start using the proxy:<p>
+      
+      <ol>
+      <li> Log in to the proxy if you haven't already (using the login button in the upper right corner).  This login uses the EVE SSO login mechanism.
+      <li> Create at least one key/hash pair on the <a href="/account">Account</a> page.  You'll be required to select the set of ESI scopes which 
+      should be available to the pair, and you'll need to authenticate with EVE SSO to authorize these scopes.
+      </ol>
+      
+      Once you've created a key/hash pair, the proxy will continue to refresh the associated token according to any expiry dates you've set for the key.
+      
+      The proxy supports the same Swagger interface as the ESI servers except that the host is different, and the two query parameters are required
+      for authenticated endpoints.  If you're using ESI URIs directly, you simply need to replace <code>https://esi.tech.ccp.is/</code>
+      with <code>https://esi-proxy.orbital.enterprises/</code>.  If you're using a Swagger client, you need to make a similar replacement
+      in order to generate the proper URL for the Swagger config.  For example, <code>https://esi.tech.ccp.is/latest/swagger.json?datasource=tranquility</code>
+      becomes <code>https://esi-proxy.orbital.enterprises/latest/swagger.json?datasource=tranquility</code>.
+      
+      Currently, the proxy supports all three available ESI servers ("legacy", "latest" and "dev").  However, we only regularly test against "latest".      
+      </div>
+    </div>
+  </div>
+</div> <!-- row -->
+
+<div class="row col-wrap">
+  
+  <div class="col-md-12">
+    <div id="about-panel" class="panel panel-default">
+      <div class="panel-heading">
+        <h3 class="panel-title">About ESI Proxy</h3>
+      </div>
+      <div class="panel-body">
+      <ul>
+      <li> ESI Proxy is provided by Dark Planet Ventures (DPVT), a one player - multiple alts extremely tiny EVE corporation.
+      </ul>
+      </div>
+    </div>
+  </div>
+  
+</div> <!-- row -->
+
+<!-- End of view -->
+</div>

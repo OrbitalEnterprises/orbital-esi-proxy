@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<persistence
+    xmlns="http://java.sun.com/xml/ns/persistence"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://java.sun.com/xml/ns/persistence http://java.sun.com/xml/ns/persistence/persistence_2_0.xsd"
+    version="2.0">
+
+    <persistence-unit name="esiproxy-production">
+        <description>
+            ESI Proxy Configuration
+        </description>
+        
+        <class>enterprises.orbital.db.DBProperty</class>
+        <class>enterprises.orbital.esi.proxy.ProxyUserAccount</class>
+        <class>enterprises.orbital.esi.proxy.ProxyUserAuthSource</class>
+        <class>enterprises.orbital.esi.proxy.ProxyAccessKey</class>
+
+        <properties>
+            <property name="javax.persistence.jdbc.driver" value="${enterprises.orbital.db.properties.driver}"/>
+            <property name="javax.persistence.jdbc.url" value="${enterprises.orbital.db.properties.url}"/>
+            <property name="javax.persistence.jdbc.user" value="${enterprises.orbital.db.properties.user}"/>
+            <property name="javax.persistence.jdbc.password" value="${enterprises.orbital.db.properties.password}"/>
+            <property name="hibernate.dialect" value="${enterprises.orbital.db.properties.dialect}"/>
+            <property name="hibernate.show_sql" value="false" />
+            <property name="hibernate.format_sql" value="false" />
+            <!-- Remove after testing -->
+            <!-- <property name="hibernate.hbm2ddl.auto" value="update"/> -->
+            
+            <property name="hibernate.c3p0.min_size" value="5"/>
+            <property name="hibernate.c3p0.max_size" value="20"/>
+            <property name="hibernate.c3p0.timeout" value="300"/>
+            <property name="hibernate.c3p0.max_statements" value="50"/>
+            <property name="hibernate.c3p0.idle_test_period" value="10000"/>
+        </properties>
+
+    </persistence-unit>
+
+</persistence>

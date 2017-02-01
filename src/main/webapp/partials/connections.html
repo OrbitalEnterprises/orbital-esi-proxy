@@ -1,0 +1,108 @@
+<!-- View, add, modify or delete proxy connections -->
+<div class="container-fluid">
+
+<div class="row col-wrap">
+  <div class="col-md-12">
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <table style="border-collapse: collapse; border: 0px;">
+          <tr>
+            <td nowrap><h3 class="panel-title">Proxy Connections {{loading ? "(Loading ...)" : ""}}</h3></td>
+            <td align="right" width="100%">
+              <div class="btn-group pull-right">
+                <button type="button" class="btn btn-default" ng-click="reloadList()">Refresh</button>
+                <button type="button" class="btn btn-default" ng-click="create()">Create New Connection</button>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="panel-body">
+        <table class="table" style="width: 100%" ng-hide="connectionList.length == 0">
+        <tr>
+          <th>Character</th>
+          <th>Server Type</th>
+          <th>Key ID</th>
+          <th>Hash</th>
+          <th>Expires?</th>
+          <th>Scope(s)</th>
+          <th>Token Expiry</th>
+          <th>Actions</th>          
+        </tr>
+        <tr ng-repeat="conn in connectionList">
+          <td style="vertical-align: middle">{{conn.characterName}}</td>
+          <td style="vertical-align: middle">{{conn.serverType}}</td>
+          <td style="vertical-align: middle">{{conn.kid}}</td>
+          <td style="vertical-align: middle">{{conn.credential}}</td>
+          <td style="vertical-align: middle">{{conn.expiry != -1 ? (conn.expiry|date:'yyyy-MM-dd':'UTC') : 'Never'}}</td>
+          <td style="vertical-align: middle" title="{{conn.displayScopes}}">HOVER HERE</td>
+          <td style="vertical-align: middle">{{conn.accessTokenExpiry > 0 ? (conn.accessTokenExpiry|date:'yyyy-MM-dd HH:mm:ss':'UTC') : 'N/A'}}</td>
+          <td>
+            <button type="button" class="btn btn-primary" ng-click="changeConnectionExpiry($index)">Change Expiry</button>
+            <button type="button" class="btn btn-primary" ng-click="deleteConnection(conn.kid)">Delete</button>
+          </td>
+        </tr>
+        </table>
+        
+        <div class="col-md-10 col-md-offset-1" ng-hide="connectionList.length > 0 || loading">
+          <div class="alert alert-warning" role="alert">
+          No connections have been created.  Use the "Create New Connection" button to create an access key.
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+<!-- Create Connection Dialog -->
+<div id="createConnection" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="connectionModalLabel">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="connectionModalLabel">{{ modConnection == null ? "Create New Connection" : "Change Connection Expiry" }}</h4>
+      </div>
+      <div class="modal-body">
+        <form class="form-inline">
+          <div class="form-group" ng-hide="modConnection != null">
+            <label for="serverTypeInput">SERVER:</label>
+            <select class="form-control" id="serverTypeInput" ng-model="serverType" ng-change="updateDialogScope()">
+              <option value="latest">latest</option>
+              <option value="dev">dev</option>
+              <option value="legacy">legacy</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-left: 10px;">
+            <label for="expireInput">EXPIRES:</label>
+            <input type="text" class="form-control" id="expireInput" ng-model="expiryDate" validatekeyexpiry
+                   data-placement="top" data-container="body" 
+                   data-content="Enter a date (YYYY-MM-DD) or click 'Never'.  This connection will be invalid after the specified date." 
+                   data-trigger="manual">
+            <button type="button" class="btn btn-info" ng-click="expiryDate = 'Never'" style="margin-left: 10px;">
+            <span class="glyphicon glyphicon-arrow-left"></span> Never</button>
+          </div>
+        </form>
+        <form class="form-horizontal" style="margin-top: 10px; margin-left: 20px;" ng-hide="modConnection != null">
+          <div class="form-group">
+            <label>SELECTED SCOPES</label>
+            <button type="button" class="btn btn-info" ng-click="selectAllScopes()" style="margin-left: 10px;">Select All</button>
+            <button type="button" class="btn btn-warning" ng-click="clearAllScopes()" style="margin-left: 10px;">Clear All</button>
+          </div>
+          <div class="form-group" ng-repeat-start="sc in currentScope">
+            <div class="checkbox">
+              <label><input type="checkbox" ng-model="currentScopeSelection[sc.value]">{{sc.value}}</label>
+            </div>
+          </div>
+          <label ng-repeat-end>{{sc.description}}</label>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" data-dismiss="modal" 
+                ng-click="saveConnection()" ng-disabled="isFormInvald()">SAVE</button>
+      </div>
+    </div><!-- /.modal-content -->
+  </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->

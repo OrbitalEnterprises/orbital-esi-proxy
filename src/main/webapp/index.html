@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="esiProxy">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<link type="text/css" rel="stylesheet" href="vendor/jquery-ui-1.11.1/jquery-ui.min.css">
+<link type="text/css" rel="stylesheet" href="vendor/font-awesome-4.6.3/css/font-awesome.min.css">
+<link type="text/css" rel="stylesheet" href="themes/default/bootstrap/css/bootstrap.min.css">
+<link type="text/css" rel="stylesheet" href="themes/default/bootstrap/css/bootstrap-theme.min.css">
+<link type="text/css" rel="stylesheet" href="css/auth-buttons.css">
+<link type="text/css" rel="stylesheet" href="css/evekit.css">
+<link type="text/css" rel="stylesheet" href="themes/default/evekit.css">
+<script>
+// TODO: update with proper code for this property
+// // Setup google analytics
+// (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+// (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+// m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+// })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+// ga('create', 'UA-76800053-1', 'auto');
+// ga('send', 'pageview');
+</script>
+<script src="vendor/d3.min.js"></script>
+<script src="vendor/jquery-2.1.1.min.js"></script>
+<script src="vendor/jquery-ui-1.11.1/jquery-ui.min.js"></script>
+<script src="vendor/bootstrap-3.2.0/js/bootstrap.min.js"></script>
+<script src="vendor/angular-1.3.0/angular.min.js"></script>
+<script src="vendor/angular-1.3.0/angular-route.min.js"></script>
+<script src="vendor/angular-1.3.0/angular-resource.min.js"></script>
+<script src="vendor/angular-1.3.0/angular-sanitize.min.js"></script>
+<script src="vendor/URI.js"></script>
+<script src="vendor/angular-vertilize.min.js"></script>
+<script src="vendor/jquery.timepicker.min.js"></script>
+<script src="js/swagger-client.min.js"></script>
+<script src="js/remote.js"></script>
+<script src="js/services-ws.js"></script>
+<script src="js/dialog.js"></script>
+<script src="js/main.js"></script>
+<script src="js/connections.js"></script>
+<script src="js/proxy.js"></script>
+<link rel="shortcut icon" href="resources/favicon.ico" />
+<title>ESI Proxy</title>
+</head>
+<body style="padding-top: 60px; padding-bottom: 40px;">
+	<nav id="nav-bar" class="navbar navbar-inverse navbar-fixed-top"
+		role="navigation" style="margin-bottom: 0px;"
+    ng-controller="ProxyAuthCtrl">
+		<div class="container-fluid">
+			<!-- Brand and toggle get grouped for better mobile display -->
+			<div class="navbar-header">
+				<button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#proxy-navbar-collapse" aria-expanded="false">
+					<span class="sr-only">Toggle navigation</span>
+					<span class="icon-bar"></span> 
+					<span class="icon-bar"></span> 
+					<span class="icon-bar"></span>
+				</button>
+				<a class="navbar-brand" href=""><img src="resources/images/tape_logo.png" alt="ESI Proxy" /></a>
+			</div>
+
+			<!-- Collect the nav links, forms, and other content for toggling -->
+			<div class="collapse navbar-collapse" id="proxy-navbar-collapse">
+        <!-- breadcrumb for current page -->
+				<p class="navbar-text label label-info visible-md-inline visible-lg-inline"
+					style="color: white; padding: 5px;">{{$route.current.scope.sectionName}}</p>
+        <!--  menu for current tool -->
+				<ul class="nav navbar-nav">
+					<li ng-repeat="topmenu in proxymenus|filter:menufilter" class="{{topmenu.menulist ? 'dropdown' : ''}}" title="{{topmenu.title}}">
+					  <a role="menuitem" ng-href="{{topmenu.link}}" title="{{topmenu.title}}" ng-if="!topmenu.menulist">{{topmenu.display}}</a>            
+					  <a class="dropdown-toggle" data-toggle="dropdown" href="" ng-if="topmenu.menulist">{{topmenu.display}} <span class="caret"></span></a>
+						<ul class="dropdown-menu" role="menu" ng-if="topmenu.menulist">
+							<li ng-repeat="menuitem in topmenu.menulist|filter:menufilter" role="presentation" class="{{menuitem.sep ? 'divider' : ''}}">
+							 <a ng-if="!menuitem.sep" role="menuitem" target="{{menuitem.pop ? '_blank' : '_self'}}" ng-href="{{menuitem.link}}" title="{{menuitem.title}}">{{menuitem.display}}</a>
+							</li>
+						</ul>
+					 </li>
+				</ul>
+        <!-- login/logout -->
+				<ul id="nav-bar-right" class="nav navbar-nav navbar-right">
+					<li id="login-dropdown"
+						style="padding-top: 12px; padding-right: 5px;"
+						ng-hide="userSource != null">
+						<p style="color: white;">
+							<b>Sign in with:</b>&nbsp;
+							<button type="button" class="btn btn-primary btn-auth btn-eve"
+								onclick="window.location = 'api/ws/login/eve';">
+								<b>EVE Online</b>
+							</button>
+							&nbsp;
+						</p>
+					</li>
+					<li id="logout-dropdown"
+						style="padding-top: 8px; padding-right: 5px;"
+						ng-hide="userSource == null">
+						<button type="button" class="btn btn-primary"
+							onclick="window.location = 'api/ws/logout';">
+							<b>Signed in: {{userSource.screenName}}</b>
+						</button>
+					  &nbsp;
+					</li>
+				</ul>
+			</div>
+			<!-- /.navbar-collapse -->
+		</div>
+		<!-- /.container-fluid -->
+	</nav>
+	<!-- Dialogs and Messages Section -->
+	<div ng-controller="ESIProxyDialogCtrl">
+		<div id="esi-proxy-dialog" class="modal" tabindex="-1" role="dialog"
+			aria-labelledby="evekitModalLabel" aria-hidden="true">
+			<div class="modal-dialog modal-sm">
+				<div class="modal-content">
+					<div class="modal-header bg-{{visibleDialog.dialogClass}}">
+						<h4 class="modal-title">
+							<b>{{visibleDialog.messageType}}</b>
+						</h4>
+					</div>
+					<div class="modal-body bg-{{visibleDialog.dialogClass}}" ng-bind-html="renderVisibleDialog"></div>
+					<div class="modal-footer bg-{{visibleDialog.dialogClass}}">
+						<button style="margin-right: 5px;"
+							ng-repeat="btn in visibleDialog.buttons" type="button"
+							class="btn btn-{{visibleDialog.dialogClass}}"
+							ng-click="handleDialogComplete(visibleDialog.id, visibleDialog.cb, $index)">{{btn}}</button>
+			      <div class="progress" ng-hide="visibleDialog.delay < 0"  style="margin-top: 5px;">
+              <div class="progress-bar progress-bar-{{visibleDialog.dialogClass}} progress-bar-striped active"  
+                   role="progressbar" aria-valuenow="{{visibleDialog.progress}}" aria-valuemin="0" aria-valuemax="100" style="width: {{visibleDialog.progress}}%">
+                <span class="sr-only">{{visibleDialog.progress}}% Complete</span>
+              </div>
+            </div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div id="esi-proxy-message"
+			style="position: absolute; z-index: 10000; padding: 5px; border: 2px solid;"
+			ng-hide="visibleMessage == null"
+			class="alert alert-{{visibleMessage.dialogClass}}" role="alert">
+			<b>{{visibleMessage.messageType}}:</b>&nbsp;&nbsp;<span ng-bind-html="renderVisibleMessage"></span>&nbsp;&nbsp;
+			<button style="margin-right: 5px;"
+				ng-repeat="btn in visibleMessage.buttons" type="button"
+				class="btn btn-{{visibleMessage.dialogClass}}"
+				ng-click="handleMessageComplete(visibleMessage.id, visibleMessage.cb, $index)">{{btn}}</button>
+			<div class="progress"  ng-hide="visibleMessage.delay < 0" style="margin-top: 5px;">
+        <div class="progress-bar progress-bar-{{visibleMessage.dialogClass}} progress-bar-striped active"  
+             role="progressbar" aria-valuenow="{{visibleMessage.progress}}" aria-valuemin="0" aria-valuemax="100" style="width: {{visibleMessage.progress}}%">
+          <span class="sr-only">{{visibleMessage.progress}}% Complete</span>
+        </div>
+      </div>
+		</div>
+	</div>
+	<div style="padding-left: 10px; padding-right: 10px;" ng-view></div>
+  <!-- Footer -->
+	<nav id="bottom-nav" class="navbar navbar-inverse navbar-fixed-bottom" role="navigation">
+    <table style="width: 100%">
+      <tr>
+        <td style="white-space: nowrap; width: 100%; text-align: left">
+	   	    <a href="https://www.youtube.com/channel/UC6uATBICpSfi4kCneqxU_8Q/feed"><img src="resources/YouTube-logo-full_color.png" height="46px"></a>
+    		  <a href="http://blog.orbital.enterprises/"><img src="resources/blogger-logo-medium.png" height="20px"></a>
+        </td>
+        <td class="evekit-about" ng-controller="ProxyVersionCtrl" style="white-space: nowrap; padding-right: 10px">
+  			  <span class="evekit-branch" title="Build {{esiProxyBuildDate}}">ESI Proxy Version {{esiProxyVersion}}</span><br />
+  			  <span>&copy; esi-proxy.orbital.enterprises 2017 -- EVE Online is &copy; CCP Games 1997-2017</span>
+        </td>
+      </tr>
+    </table>
+	</nav>
+	<script type="text/javascript">
+	  // Initialize dialog
+    $('#esi-proxy-dialog').modal({
+      backdrop : 'static',
+      keyboard : false,
+      show : false
+    });
+  </script>
+</body>
+</html>

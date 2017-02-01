@@ -1,0 +1,59 @@
+/* EveKit Container CSS for this theme */
+.selected-account {
+	border: 2px solid white;
+}
+
+.history-label {
+	border: 2px solid #cc0;
+	background-color: #e59210;
+	color: #000;
+}
+
+.history-spacer {
+	color: #000;
+}
+
+.sync-history-spacer {
+	background-color: #000;
+	color: #000;
+}
+
+.prohibited-drop-highlight {
+	border: 4px solid red;
+}
+
+.allowed-drop-highlight {
+	border: 4px solid green;
+}
+
+.key-allowed:hover {
+	background-color: #0F0;
+}
+
+.key-prohibited:hover {
+	background-color: #F00;
+}
+
+.list-group-item-heading {
+	color: #e59210; 
+}
+
+.sync-history-nop {
+	background-color: #000;
+}
+
+.panel-title {
+	font-weight: bold;
+}
+
+.popover {
+	color: #000;
+}
+
+.modal {
+	color: #000;
+}
+
+.well {
+	color: #000;
+}
