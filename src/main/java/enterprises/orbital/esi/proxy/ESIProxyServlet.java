@@ -93,16 +93,15 @@ public class ESIProxyServlet extends ProxyServlet {
     servletPath = OrbitalProperties.getGlobalProperty(PROP_APP_NAME, DEF_APP_NAME);
     expiryWindow = OrbitalProperties.getLongGlobalProperty(PROP_EXPIRY_WINDOW, DEF_EXPIRY_WINDOW);
     // Configure for https connections
-    System.setProperty("javax.net.ssl.trustStore", OrbitalProperties.getGlobalProperty(PROP_TRUST_STORE));
-    System.setProperty("javax.net.ssl.trustStorePassword", OrbitalProperties.getGlobalProperty(PROP_TRUST_STORE_PASS));
+    //System.setProperty("javax.net.ssl.trustStore", OrbitalProperties.getGlobalProperty(PROP_TRUST_STORE));
+    //System.setProperty("javax.net.ssl.trustStorePassword", OrbitalProperties.getGlobalProperty(PROP_TRUST_STORE_PASS));
     // SSL context for secure connections can be created either based on
     // system or application specific properties.
-    SSLContext sslcontext = SSLContexts.createSystemDefault();
-
+    //SSLContext sslcontext = SSLContexts.createSystemDefault();
     // Create a registry of custom connection socket factories for supported
     // protocol schemes.
-    RegistryBuilder.<ConnectionSocketFactory> create().register("http", PlainConnectionSocketFactory.INSTANCE)
-        .register("https", new SSLConnectionSocketFactory(sslcontext)).build();
+    //RegistryBuilder.<ConnectionSocketFactory> create().register("http", PlainConnectionSocketFactory.INSTANCE)
+    //    .register("https", new SSLConnectionSocketFactory(sslcontext)).build();
   }
 
   @Override
@@ -144,7 +143,8 @@ public class ESIProxyServlet extends ProxyServlet {
      * POST). We need the InputStream later on. So we'll parse the query string ourselves. A side benefit is we can keep the proxy parameters in the query
      * string and not have to add them to a URL encoded form attachment.
      */
-    String queryString = "?" + servletRequest.getQueryString();// no "?" but might have "#"
+    String rawQueryString = servletRequest.getQueryString();
+    String queryString = "?" + (rawQueryString == null ? "" : rawQueryString);// no "?" but might have "#"
     int hash = queryString.indexOf('#');
     if (hash >= 0) queryString = queryString.substring(0, hash);
     List<NameValuePair> pairs;
@@ -208,6 +208,7 @@ public class ESIProxyServlet extends ProxyServlet {
         }
       }
       // Attach the access token to the authorization header
+      // params.put("access_token", connKey.getAccessToken());
       String header = "Bearer " + connKey.getAccessToken();
       servletRequest.setAttribute(ATTR_AUTH_HEADER, header);
     }
@@ -266,7 +267,7 @@ public class ESIProxyServlet extends ProxyServlet {
     HttpEntity entity = proxyResponse.getEntity();
     if (entity != null) {
       Header checkGzip = proxyResponse.getFirstHeader("Content-Encoding");
-      boolean useGzip = checkGzip.getValue().equals("gzip");
+      boolean useGzip = checkGzip == null ? false : checkGzip.getValue().equals("gzip");
       StringBuilder assembly = new StringBuilder();
       BufferedReader extractor = new BufferedReader(new InputStreamReader(useGzip ? new GZIPInputStream(entity.getContent()) : entity.getContent()));
       for (String next = extractor.readLine(); next != null; next = extractor.readLine()) {
@@ -346,7 +347,7 @@ public class ESIProxyServlet extends ProxyServlet {
                                     HttpRequest proxyRequest) {
     // Superclass handles all headers excpetion authorization
     super.copyRequestHeaders(servletRequest, proxyRequest);
-    if (servletRequest.getParameter(ATTR_AUTH_HEADER) != null) proxyRequest.addHeader("Authorization", servletRequest.getParameter(ATTR_AUTH_HEADER));
+    if (servletRequest.getAttribute(ATTR_AUTH_HEADER) != null) proxyRequest.addHeader("Authorization", String.valueOf(servletRequest.getAttribute(ATTR_AUTH_HEADER)));
   }
 
 }

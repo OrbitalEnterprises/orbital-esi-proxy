@@ -223,7 +223,7 @@ public class ServicesWS {
       } else {
         String eveClientID = OrbitalProperties.getGlobalProperty("enterprises.orbital.auth.eve_client_id");
         String eveSecretKey = OrbitalProperties.getGlobalProperty("enterprises.orbital.auth.eve_secret_key");
-        builder.setPath(builder.getPath() + "ws/callback/eve");
+        builder.setPath(builder.getPath() + "api/ws/callback/eve");
         redirect = EVEAuthHandler.doGet(eveClientID, eveSecretKey, builder.toString(), null, null, req);
         if (redirect == null) redirect = makeErrorCallback(req, "EVE");
         log.fine("Redirecting to: " + redirect);
@@ -553,11 +553,17 @@ public class ServicesWS {
         URIBuilder builder = makeStandardBuilder(request);
         String eveClientID = OrbitalProperties.getGlobalProperty("enterprises.orbital.auth.eve_client_id");
         String eveSecretKey = OrbitalProperties.getGlobalProperty("enterprises.orbital.auth.eve_secret_key");
-        builder.setPath(builder.getPath() + "ws/callback/eve");
+        builder.setPath(builder.getPath() + "api/ws/callback/eve");
         redirect = EVEAuthHandler.doGet(eveClientID, eveSecretKey, builder.toString(), scopes, stateKey, request);
         if (redirect == null) redirect = makeErrorCallback(request, "EVE");
         log.fine("Redirecting to: " + redirect);
-        return Response.temporaryRedirect(new URI(redirect)).build();
+	final String redirectResult = redirect;
+        // return Response.temporaryRedirect(new URI(redirect)).build();
+	// Return redirect URI which client will then set as location
+        return Response.ok().entity(new Object() {
+		@SuppressWarnings("unused")
+		public final String newLocation = redirectResult;
+	    }).build();
       }
     } else {
       // Update - find the key

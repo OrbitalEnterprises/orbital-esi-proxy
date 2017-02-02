@@ -38,8 +38,8 @@
   esiProxyConnections.directive('validatekeyexpiry', abstractValidator('validatekeyexpiry', 'expireInput', validateKeyExpiry));
 
   esiProxyConnections.controller('ConnectionsCtrl',
-      ['$scope', '$location', '$filter', 'DialogService', 'AccountWSService', 'UserCredentialsService',
-       function($scope, $location, $filter, DialogService, AccountWSService, UserCredentialsService) {
+      ['$scope', '$location', '$window', '$filter', 'DialogService', 'AccountWSService', 'UserCredentialsService',
+       function($scope, $location, $window, $filter, DialogService, AccountWSService, UserCredentialsService) {
         $scope.sectionName = "Connection List";
         $scope.loading = false;
         $scope.connectionList = [];
@@ -179,8 +179,8 @@
             $scope.expiryDate = $scope.expiryDate.trim();
             if ($scope.expiryDate != 'Never') expiry = (new Date($scope.expiryDate)).getTime();
             var changedConn = {
-                kid: $scope.modConnection.kid,
-                expiry: expiry
+                "kid": $scope.modConnection.kid,
+                "expiry": expiry
             }
             AccountWSService.saveAccessKey(changedConn).then(function(result) {
               // Success, refresh list
@@ -201,14 +201,14 @@
               if ($scope.currentScopeSelection.hasOwnProperty(sc)) scopeList.push(sc);
             }
             var newConn = {
-                kid: -1,
-                expiry: expiry,
-                serverType: $scope.serverType,
-                scopes: scopeList.join(' ')
+                "kid": -1,
+                "expiry": expiry,
+                "serverType": $scope.serverType,
+                "scopes": scopeList.join(' ')
             };
             AccountWSService.saveAccessKey(newConn).then(function(result) {
-              // Success, refresh list
-              $scope.reloadList();
+              // Result is a redirect to complete
+              $window.location.href = result['newLocation'];
             }).catch(function(err) {
               // Fail, show error message
               $scope.$apply(function() {
