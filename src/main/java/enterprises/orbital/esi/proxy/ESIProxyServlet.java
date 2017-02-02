@@ -46,12 +46,23 @@ import enterprises.orbital.base.OrbitalProperties;
 import enterprises.orbital.oauth.EVEAuthHandler;
 
 /**
- * Proxy for "latest" ESI endpoints.
+ * Proxy for requests to CCP ESI endpoints. The proxy handles three types of request:
+ * 
+ * <ol>
+ * <li>Requests for swagger.json are intercepted on return from the ESI and translated, replacing the OAuth security definitions on the ESI endpoint, with the
+ * api keys used by the proxy.
+ * <li>Requests which include the proxies key/hash query parameters are used to lookup a registered proxy key. If such a key exists, then the proxy extracts the
+ * related ESI access token, refreshes it as necessary, and adds it to the header of the request. The request is then forwarded to the ESI and the result is
+ * passed through to the caller.
+ * <li>All other requests are simply passed through to the ESI, with the results passed back to the caller.
+ * </ol>
+ * 
+ * This class was written using https://github.com/mitre/HTTP-Proxy-Servlet/blob/master/src/main/java/org/mitre/dsmiley/httpproxy/URITemplateProxyServlet.java
+ * as a template.
+ * 
  */
-@SuppressWarnings({
-    "serial"
-})
 public class ESIProxyServlet extends ProxyServlet {
+  private static final long   serialVersionUID      = 8393680443086268080L;
 
   private static final String PROP_PROXY_HOST       = "enterprises.orbital.proxyHost";
   private static final String PROP_PROXY_PORT       = "enterprises.orbital.proxyPort";
@@ -81,41 +92,50 @@ public class ESIProxyServlet extends ProxyServlet {
   protected String            servletPath;
   protected long              expiryWindow;
 
+  /**
+   * Setup.
+   */
   @Override
   protected void initTarget() throws ServletException {
+    // Host and port represent the local host and port for the proxy
     proxyHost = OrbitalProperties.getGlobalProperty(PROP_PROXY_HOST, DEF_PROXY_HOST);
     proxyPort = (int) OrbitalProperties.getLongGlobalProperty(PROP_PROXY_PORT, DEF_PROXY_PORT);
+    // Names of key and hash query parameters we expect
     proxyKeyName = OrbitalProperties.getGlobalProperty(PROP_PROXY_KEY_NAME, DEF_PROXY_KEY_NAME);
     proxyHashName = OrbitalProperties.getGlobalProperty(PROP_PROXY_HASH_NAME, DEF_PROXY_HASH_NAME);
+    // Security definition used to replace OAuth security definition on ESI swagger.json
     proxySecurityDefinition = "\"securityDefinitions\":{ \"" + proxyKeyName + "\" : { \"type\" : \"apiKey\", \"name\" : \"" + proxyKeyName
         + "\", \"in\" : \"query\"}, \"" + proxyHashName + "\" : { \"type\" : \"apiKey\", \"name\" : \"" + proxyHashName + "\", \"in\" : \"query\"}}";
     proxySecurity = "\"security\":[{\"" + proxyKeyName + "\":\\[\\], \"" + proxyHashName + "\":\\[\\]\\}\\]";
+    // Local servlet path
     servletPath = OrbitalProperties.getGlobalProperty(PROP_APP_NAME, DEF_APP_NAME);
+    // Maximum window (in milliseconds) between now and token expiry time. If we're within the window, then
+    // we'll refresh the token before making a request.
     expiryWindow = OrbitalProperties.getLongGlobalProperty(PROP_EXPIRY_WINDOW, DEF_EXPIRY_WINDOW);
-    // Configure for https connections
-    //System.setProperty("javax.net.ssl.trustStore", OrbitalProperties.getGlobalProperty(PROP_TRUST_STORE));
-    //System.setProperty("javax.net.ssl.trustStorePassword", OrbitalProperties.getGlobalProperty(PROP_TRUST_STORE_PASS));
-    // SSL context for secure connections can be created either based on
-    // system or application specific properties.
-    //SSLContext sslcontext = SSLContexts.createSystemDefault();
-    // Create a registry of custom connection socket factories for supported
-    // protocol schemes.
-    //RegistryBuilder.<ConnectionSocketFactory> create().register("http", PlainConnectionSocketFactory.INSTANCE)
-    //    .register("https", new SSLConnectionSocketFactory(sslcontext)).build();
+    // If your setup requires a specific trust store you can configure that here.
+    if (OrbitalProperties.getGlobalProperty(PROP_TRUST_STORE) != null) {
+      System.setProperty("javax.net.ssl.trustStore", OrbitalProperties.getGlobalProperty(PROP_TRUST_STORE));
+      if (OrbitalProperties.getGlobalProperty(PROP_TRUST_STORE_PASS) != null)
+        System.setProperty("javax.net.ssl.trustStorePassword", OrbitalProperties.getGlobalProperty(PROP_TRUST_STORE_PASS));
+      SSLContext sslcontext = SSLContexts.createSystemDefault();
+      RegistryBuilder.<ConnectionSocketFactory> create().register("http", PlainConnectionSocketFactory.INSTANCE)
+          .register("https", new SSLConnectionSocketFactory(sslcontext)).build();
+    }
   }
 
+  /**
+   * Main proxy request entry point.
+   * 
+   * @param servletRequest
+   *          request from client
+   * @param servletResponse
+   *          response we'll send back to the client
+   */
   @Override
   protected void service(
                          HttpServletRequest servletRequest,
                          HttpServletResponse servletResponse)
     throws ServletException, IOException {
-
-    // Three cases we handle here:
-    //
-    // 1) Request for swagger.json - we intercept and translate the resulting JSON doc to use our security definitions and hostname
-    // 2) Request without key/hash query parameters. This we just pass through to ESI directly.
-    // 3) Request with key/hash query parameters. We translate this to an appropriate authorization header before forwarding the request.
-    //
 
     // Extract the last part of the servlet path as this contains the target ESI server (e.g. latest, legacy, dev)
     // This isn't part of path info because of the way the mappings are configured in web.xml
@@ -137,29 +157,26 @@ public class ESIProxyServlet extends ProxyServlet {
       return;
     }
 
-    // Else, check whether there are key/hash params.
-    /*
-     * Do not use servletRequest.getParameter(arg) because that will typically read and consume the servlet InputStream (where our form data is stored for
-     * POST). We need the InputStream later on. So we'll parse the query string ourselves. A side benefit is we can keep the proxy parameters in the query
-     * string and not have to add them to a URL encoded form attachment.
-     */
+    // Else, check whether there are key/hash params. See
+    // https://github.com/mitre/HTTP-Proxy-Servlet/blob/master/src/main/java/org/mitre/dsmiley/httpproxy/URITemplateProxyServlet.java
+    // for an explanation of why we don't just use servletRequest.getParameter here.
     String rawQueryString = servletRequest.getQueryString();
     String queryString = "?" + (rawQueryString == null ? "" : rawQueryString);// no "?" but might have "#"
     int hash = queryString.indexOf('#');
     if (hash >= 0) queryString = queryString.substring(0, hash);
     List<NameValuePair> pairs;
     try {
-      // note: HttpClient 4.2 lets you parse the string without building the URI
       pairs = URLEncodedUtils.parse(new URI(queryString), "UTF-8");
     } catch (URISyntaxException e) {
-      throw new IOException("Unexpected URI parsing error on " + queryString, e);
+      servletResponse.sendError(HttpServletResponse.SC_BAD_REQUEST, "Unexpected URI parsing error on " + queryString);
+      return;
     }
     LinkedHashMap<String, String> params = new LinkedHashMap<String, String>();
     for (NameValuePair pair : pairs) {
       params.put(pair.getName(), pair.getValue());
     }
 
-    // Remove and process hash params
+    // Look for the ESI proxy key/hash pair and process
     if (params.containsKey(proxyKeyName) && params.containsKey(proxyHashName)) {
       // Extract and remove params
       long pKey = -1;
@@ -184,8 +201,14 @@ public class ESIProxyServlet extends ProxyServlet {
         servletResponse.sendError(HttpServletResponse.SC_BAD_REQUEST, "No connection found with proxy key: " + pKey);
         return;
       }
+      // Verify this access key has not expired
+      if (connKey.getExpiry() > 0 && connKey.getExpiry() < OrbitalProperties.getCurrentTime()) {
+        servletResponse.sendError(HttpServletResponse.SC_BAD_REQUEST, "Proxy key expired");
+        return;
+      }
       // Ensure the access token is valid, if not attempt to renew it
       if (connKey.getAccessTokenExpiry() - OrbitalProperties.getCurrentTime() < expiryWindow) {
+        // TODO: we'll need to be more careful here if we deploy this to a cluster behind a load balancer
         String refreshToken = connKey.getRefreshToken();
         if (refreshToken == null) {
           servletResponse.sendError(HttpServletResponse.SC_FORBIDDEN, "Connection does not have a valid refresh token.  Please delete and re-create.");
@@ -208,7 +231,6 @@ public class ESIProxyServlet extends ProxyServlet {
         }
       }
       // Attach the access token to the authorization header
-      // params.put("access_token", connKey.getAccessToken());
       String header = "Bearer " + connKey.getAccessToken();
       servletRequest.setAttribute(ATTR_AUTH_HEADER, header);
     }
@@ -229,6 +251,15 @@ public class ESIProxyServlet extends ProxyServlet {
     super.service(servletRequest, servletResponse);
   }
 
+  /**
+   * Override to provide our modified query string.
+   * 
+   * @param servletRequest
+   *          original servlet request
+   * @param queryString
+   *          original query string
+   * @return query string to attach
+   */
   @Override
   protected String rewriteQueryStringFromRequest(
                                                  HttpServletRequest servletRequest,
@@ -236,6 +267,8 @@ public class ESIProxyServlet extends ProxyServlet {
     return (String) servletRequest.getAttribute(ATTR_QUERY_STRING);
   }
 
+  // Pattern matchers for elements of swagger.json we need to replace
+  //
   // "basePath":"/latest"
   protected static final Pattern BASEPATH_PATTERN = Pattern.compile("\"basePath\"[ ]*:[ ]*\"([a-zA-Z/]+)\"");
   // "host":"esi.tech.ccp.is"
@@ -247,6 +280,18 @@ public class ESIProxyServlet extends ProxyServlet {
   // "security":[{"evesso":["esi-assets.read_assets.v1"]}]
   protected static final Pattern SECURITY_PATTERN = Pattern.compile("\"security\"[ ]*:[ ]*\\[\\{\"evesso\".*?\\]\\}\\]");
 
+  /**
+   * Override response entity to give us a chance to replace content.
+   * 
+   * @param proxyResponse
+   *          response returned from proxied service
+   * @param servletResponse
+   *          response to be sent to client
+   * @param proxyRequest
+   *          request we sent to proxied service
+   * @param servletRequest
+   *          request sent from client
+   */
   @Override
   protected void copyResponseEntity(
                                     HttpResponse proxyResponse,
@@ -267,12 +312,11 @@ public class ESIProxyServlet extends ProxyServlet {
     HttpEntity entity = proxyResponse.getEntity();
     if (entity != null) {
       Header checkGzip = proxyResponse.getFirstHeader("Content-Encoding");
-      boolean useGzip = checkGzip == null ? false : checkGzip.getValue().equals("gzip");
+      boolean useGzip = checkGzip != null && checkGzip.getValue().equals("gzip");
       StringBuilder assembly = new StringBuilder();
       BufferedReader extractor = new BufferedReader(new InputStreamReader(useGzip ? new GZIPInputStream(entity.getContent()) : entity.getContent()));
-      for (String next = extractor.readLine(); next != null; next = extractor.readLine()) {
+      for (String next = extractor.readLine(); next != null; next = extractor.readLine())
         assembly.append(next);
-      }
       // Fix hostname
       StringBuffer transformed = new StringBuffer();
       String src = assembly.toString();
@@ -341,13 +385,22 @@ public class ESIProxyServlet extends ProxyServlet {
     }
   }
 
+  /**
+   * Override to place authorization header when needed.
+   * 
+   * @param servletRequest
+   *          client request
+   * @param proxyRequest
+   *          request we'll send to proxied service
+   */
   @Override
   protected void copyRequestHeaders(
                                     HttpServletRequest servletRequest,
                                     HttpRequest proxyRequest) {
-    // Superclass handles all headers excpetion authorization
+    // Superclass handles all headers except Authorization
     super.copyRequestHeaders(servletRequest, proxyRequest);
-    if (servletRequest.getAttribute(ATTR_AUTH_HEADER) != null) proxyRequest.addHeader("Authorization", String.valueOf(servletRequest.getAttribute(ATTR_AUTH_HEADER)));
+    if (servletRequest.getAttribute(ATTR_AUTH_HEADER) != null)
+      proxyRequest.addHeader("Authorization", String.valueOf(servletRequest.getAttribute(ATTR_AUTH_HEADER)));
   }
 
 }

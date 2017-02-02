@@ -9,15 +9,16 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletResponse;
 
-@javax.annotation.Generated(
-    value = "class io.swagger.codegen.languages.JaxRSServerCodegen",
-    date = "2015-10-06T00:30:48.186-04:00")
+/**
+ * Add standard CORS friendly headers so proxy can be called from various places.
+ */
 public class ApiOriginFilter implements javax.servlet.Filter {
   @Override
   public void doFilter(
                        ServletRequest request,
                        ServletResponse response,
-                       FilterChain chain) throws IOException, ServletException {
+                       FilterChain chain)
+    throws IOException, ServletException {
     HttpServletResponse res = (HttpServletResponse) response;
     res.addHeader("Access-Control-Allow-Origin", "*");
     res.addHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT");
@@ -30,5 +31,6 @@ public class ApiOriginFilter implements javax.servlet.Filter {
 
   @Override
   public void init(
-                   FilterConfig filterConfig) throws ServletException {}
+                   FilterConfig filterConfig)
+    throws ServletException {}
 }

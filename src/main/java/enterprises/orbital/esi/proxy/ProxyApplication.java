@@ -12,15 +12,15 @@ import enterprises.orbital.db.DBPropertyProvider;
 import enterprises.orbital.oauth.AuthUtil;
 
 public class ProxyApplication extends Application {
-  // Property which holds the name of the persistence unit for properties
+  // Property which holds the name of the persistence unit
   public static final String PROP_PROPERTIES_PU = "enterprises.orbital.esi.proxy.persistence_unit";
 
   public ProxyApplication() throws IOException {
     // Populate properties
     OrbitalProperties.addPropertyFile("ESIProxy.properties");
-    // Sent persistence unit for properties
+    // Sent persistence unit
     PersistentProperty.setProvider(new DBPropertyProvider(OrbitalProperties.getGlobalProperty(PROP_PROPERTIES_PU)));
-    // Sent UserAccountProvider provider
+    // Set UserAccountProvider provider
     AuthUtil.setUserAccountProvider(new ProxyUserAccountProvider());
   }
 

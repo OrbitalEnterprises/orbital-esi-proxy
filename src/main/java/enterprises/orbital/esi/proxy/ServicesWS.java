@@ -57,7 +57,7 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 
 /**
- * API for authentication, authentication with scopes, and logging out.
+ * API for authentication, authentication with scopes, creating connection keys, and and logging out.
  */
 @Path("/ws")
 @Produces({
@@ -76,6 +76,8 @@ public class ServicesWS {
   public static final String  PROP_VERSION             = "enterprises.orbital.esi.proxy.version";
   public static final String  PROP_TEMP_STATE_LIFETIME = "enterprises.orbital.esi.tempStateLifetime";
   public static final long    DEF_TEMP_STATE_LIFETIME  = TimeUnit.MILLISECONDS.convert(10, TimeUnit.MINUTES);
+  public static final String  PROP_KEY_LIMIT           = "enterprises.orbital.esi.keyLimit";
+  public static final long    DEF_KEY_LIMIT            = 100;
 
   // An in-memory object holding new access key state while the user authenticates with the
   // SSO. This data is purged periodically if for some reason the server fails to retrieve
@@ -98,8 +100,10 @@ public class ServicesWS {
     }
   }
 
+  // Temporary map of keys awaiting authorization before being added to the system
   protected static final Map<String, NewAccessKeyState> tempStateMap = new HashMap<>();
 
+  // Generate random key for next temp state
   protected static String generateRandomKey() {
     Random rotator = new Random(OrbitalProperties.getCurrentTime());
     StringBuilder entropy = new StringBuilder();
@@ -518,14 +522,20 @@ public class ServicesWS {
     }
     // ID on the posted key determines whether this is a new key or an update
     if (key.getKid() == -1) {
-      // TODO: limit the number of keys per user account
-      // New key. The flow is as follows:
+      // Ensure user doesn't have too many keys
+      int currentKeyCount = ProxyAccessKey.getAllKeys(user).size();
+      if (currentKeyCount >= OrbitalProperties.getLongGlobalProperty(PROP_KEY_LIMIT, DEF_KEY_LIMIT)) {
+        ServiceError errMsg = new ServiceError(
+            Status.UNAUTHORIZED.getStatusCode(),
+            "you already have the maximum number of connections which is " + OrbitalProperties.getLongGlobalProperty(PROP_KEY_LIMIT, DEF_KEY_LIMIT));
+        return Response.status(Status.UNAUTHORIZED).entity(errMsg).build();
+      }
+      // New key flow:
       // 1) Create a state object encapsulating request details. This is just a temporary object which will be purged if unused.
       // 2) Redirect the user to EVE SSO with the scopes specified on the posted key and the key to the temporary state.
       // 3) If the user successfully authenticates, then we save the new key with the supplied access token and other key parameters
       // 4) Otherwise, the user will be re-directed back to home page of the proxy.
       // NOTE: if we're in debug mode then just create a fake access key for testing. These should be destroyed as they are completely bogus.
-      // TODO: validate scopes
       long expiry = Math.max(-1, key.getExpiry());
       String scopes = key.getScopes();
       String serverType = key.getServerType();
@@ -542,6 +552,7 @@ public class ServicesWS {
         // Create the key without SSO. This key won't have an access or refresh token, so it's just for testing the UI
         ProxyAccessKey.createKey(user, expiry, serverType, scopes, "fakechar " + OrbitalProperties.getCurrentTime());
       } else {
+        // This is a real key, create the temp state
         long now = OrbitalProperties.getCurrentTime();
         String stateKey = generateRandomKey();
         NewAccessKeyState tempState = new NewAccessKeyState(now, user.getID(), expiry, serverType, scopes);
@@ -557,13 +568,13 @@ public class ServicesWS {
         redirect = EVEAuthHandler.doGet(eveClientID, eveSecretKey, builder.toString(), scopes, stateKey, request);
         if (redirect == null) redirect = makeErrorCallback(request, "EVE");
         log.fine("Redirecting to: " + redirect);
-	final String redirectResult = redirect;
-        // return Response.temporaryRedirect(new URI(redirect)).build();
-	// Return redirect URI which client will then set as location
+        final String redirectResult = redirect;
+        // Returning a Response.temporary redirect won't work here because this is an AJAX call.
+        // Instead, return the redirect as a string. The client will store in window.location to cause the redirect.
         return Response.ok().entity(new Object() {
-		@SuppressWarnings("unused")
-		public final String newLocation = redirectResult;
-	    }).build();
+          @SuppressWarnings("unused")
+          public final String newLocation = redirectResult;
+        }).build();
       }
     } else {
       // Update - find the key

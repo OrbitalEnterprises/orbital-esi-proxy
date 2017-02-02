@@ -48,8 +48,7 @@
       
       The proxy retains your access token and attempts to refresh it until the key/hash pair expires.  Any authorized third party 
       application can do the same.  So the proxy is no more or less safe than other third party applications which ask you 
-      to authenticate scopes.  In case you're worried about your access token leaking, tokens can't be used without
-      the proxy's private application key which is stored at the server.
+      to authenticate scopes.
       
       Note that you don't need to rely on the proxy to revoke access.  You can revoke your access tokens at any time at the
       <a href="https://community.eveonline.com/support/third-party-applications/">third party support site</a>.
@@ -72,27 +71,19 @@
       in order to generate the proper URL for the Swagger config.  For example, <code>https://esi.tech.ccp.is/latest/swagger.json?datasource=tranquility</code>
       becomes <code>https://esi-proxy.orbital.enterprises/latest/swagger.json?datasource=tranquility</code>.
       
-      Currently, the proxy supports all three available ESI servers ("legacy", "latest" and "dev").  However, we only regularly test against "latest".      
-      </div>
-    </div>
-  </div>
-</div> <!-- row -->
-
-<div class="row col-wrap">
-  
-  <div class="col-md-12">
-    <div id="about-panel" class="panel panel-default">
-      <div class="panel-heading">
-        <h3 class="panel-title">About ESI Proxy</h3>
-      </div>
-      <div class="panel-body">
+      Currently, the proxy supports all three available ESI servers ("legacy", "latest" and "dev").  However, we only regularly test against "latest".
+      
+      You can use these three links to jump to the Swagger UI pointing to the proxy (don't forget to "Authorize" with your key and hash from above):
+      
       <ul>
-      <li> ESI Proxy is provided by Dark Planet Ventures (DPVT), a one player - multiple alts extremely tiny EVE corporation.
+      <li> <a href="http://petstore.swagger.io/?url=https://esi-proxy.orbital.enterprises/latest/swagger.json">LATEST</a>
+      <li> <a href="http://petstore.swagger.io/?url=https://esi-proxy.orbital.enterprises/legacy/swagger.json">LEGACY</a>
+      <li> <a href="http://petstore.swagger.io/?url=https://esi-proxy.orbital.enterprises/dev/swagger.json">DEV</a>
       </ul>
+            
       </div>
     </div>
   </div>
-  
 </div> <!-- row -->
 
 <!-- End of view -->

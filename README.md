@@ -1,119 +1,136 @@
-# EveKit Frontend
+# EVE Swagger Interface (ESI) Proxy
 
-This module provides a servlet which exposes the main EveKit front end code.  This documentation contains instructions for configuring, building and deploying the front end.  This documentation also contains an overview of the EveKit service, and instructions for configuring, building and deploying a complete standalone instance of EveKit.
+The module provides two servlets which together create a service for exposing a key/hash scheme
+for access to OAuth scoped [ESI](https://esi.tech.ccp.is/) endpoints.  The ESI is a service provided
+by [CCP](https://www.ccpgames.com/) which allows third party applications to access in game
+data for [EVE Online](https://www.eveonline.com/).
 
-## What is EveKit?
+Direct access to the ESI normally requires authenticating via OAuth.  This can be inconvenient for
+certain applications (see below).  The two servlets in this module together provide a proxy
+which accepts "key" and "hash" query parameters which are then translated into an OAuth access token
+before forwarding the request to the ESI.  As a result, a much simpler authentication flow can
+be used for access to ESI data. 
 
-EveKit is a web-based toolkit for building applications based on the EVE Online API and EVE Online Static Data Export (SDE).  Through the frontend (this module), you can configure EveKit to automatically download Character and Corporation data.  Other parts of the service (e.g. the [model frontend](https://github.com/OrbitalEnterprises/evekit-model-frontend)) provide access to your data through a REST API.  If you're running EveKit stand alone then you can, of course, access your data in the backend directly without going through a frontend.  However, EveKit was designed to hide all this complexity behind a uniform REST API.  The REST API is annotated with [Swagger](http://swagger.io) making it very easy to create clients in your favorite language. 
+## Why do we need this proxy?
 
-The key features of EveKit are:
+Originally, CCP provided an [XML API](https://eveonline-third-party-documentation.readthedocs.io/en/latest/xmlapi/index.html)
+for accessing in game data.  This API used a simple key and hash to authenticate users.  The simplicity of the
+scheme made the API easy to use from many different applications, but not very secure.  Therefore, CCP
+decided to improve security by moving to an OAuth scheme for authenticating user access.  This was deployed first for
+[CREST](https://eveonline-third-party-documentation.readthedocs.io/en/latest/crest/index.html) and
+was used again for the [ESI](https://esi.tech.ccp.is/) which is slated to become the default supported
+API for access to game data from EVE Online third party applications.
 
-* EveKit can download data for both characters and corporations, at least as frequently as the EVE API servers allow.
-* EveKit synchronizes your data on each download and keeps a complete history of everything.  That is, data is versioned.  The REST API allows you to access your data as it appeared on any given date (defaulting to the latest live data).
-* EveKit lets you attach persistent meta data to your downloaded data.  This lets you tag your data, perhaps for use by applications built on top of EveKit.
-* The EveKit access API supports a key and hash scheme, similar to the EVE Online API key scheme, so you can give different people different access to your data.
-* EveKit also provides access to your data in bulk form.  You can request a snapshot of your data directly from the accounts page at any time.  This will generate a zip file containing the latest version of your data in CSV format.
+Endpoint security is now better, but the OAuth flow and the need to periodically refresh tokens is inconvenient for certain use
+cases, such as:
 
-EveKit has many configurable settings which can be changed if you plan to run in standalone mode.  We document some of those features below.
+* Applications which can't or don't want to implement OAuth token refresh logic (e.g. non-interactive applications); or,
+* Tools which don't support OAuth authentication for data sources (e.g. Google Sheets).
 
-## Screenshots
+For these use cases, the key/hash scheme is easier to use.
 
-Main Screen
+## How does this work?
 
-![EveKit Front Page](https://raw.githubusercontent.com/OrbitalEnterprises/orbitalenterprises.github.io/master/images/front.PNG "EveKit Front Page")
+The proxy provides the same Swagger-based interface used by the ESI servers, except that the usual OAuth authentication mechanism is 
+replaced with a "key and hash" scheme.  That is, you can call the usual ESI endpoints on the proxy, but instead of passing an authorization 
+header with an access token, you instead pass two query arguments:
 
-User Info Screen
+* esiProxyKey - a numeric key; and,
+* esiProxyHash - an alphanumeric string.
 
-![EveKit User Info Screen](https://raw.githubusercontent.com/OrbitalEnterprises/orbitalenterprises.github.io/master/images/user_info.PNG "EveKit User Info Screen")
+The proxy uses these arguments to look up a properly refreshed access token which is then added to the call and forwarded to the ESI servers.
+The result of the ESI call is passed back to the proxy client.  As long as your access tokens are not revoked, you'll be able to use your 
+key/hash pair to access ESI endpoints.
 
-Account List Screen
+## No OAuth?  How can I protect access to my data?
 
-![EveKit Account List Screen](https://raw.githubusercontent.com/OrbitalEnterprises/orbitalenterprises.github.io/master/images/account_list.PNG "EveKit Account List Screen")
+The "key and hash" scheme used by the proxy is identical to the scheme used by the XML API endpoints and has the same security weakness, 
+namely that anyone who has a copy of your key and hash can access any of your authenticated ESI endpoints (using this proxy). There are 
+two ways you can protect against unintended use:
 
-Sync History Screen
+1. You can choose to limit the set of ESI scopes accessible to a key/hash pair. This is done at key creation time; or,
+2. You can set an expiry date on a key/hash pair which disables the pair after a specified date.
 
-![EveKit Sync History Screen](https://raw.githubusercontent.com/OrbitalEnterprises/orbitalenterprises.github.io/master/images/sync_history.PNG "EveKit Sync History Screen")
+The proxy retains your access token and attempts to refresh it until the key/hash pair expires. Any authorized third party application can do 
+the same. So the proxy is no more or less safe than other third party applications which ask you to authenticate scopes.
 
-Access Keys Screen
+If all else fails, you can directly revoke any access tokens you've granted to the proxy at the [third party support site](https://community.eveonline.com/support/third-party-applications/).
 
-![EveKit Access Keys Screen](https://raw.githubusercontent.com/OrbitalEnterprises/orbitalenterprises.github.io/master/images/access_keys.PNG "EveKit Access Keys Screen")
+## How do I use the proxy?
 
-Model API Browser Screen
+If you're using our instance, you'll find instructions on the main page [here](https://esi-proxy.orbital.enterprises).  The instructions amount to the following:
 
-![EveKit Model API Browser Screen](https://raw.githubusercontent.com/OrbitalEnterprises/orbitalenterprises.github.io/master/images/model_browse.PNG "EveKit Model API Browser Screen")
+1. Log in to the proxy website (this is standard EVE OAuth athentication).
+2. Go to the "Connections" page and create a connection (you'll specify scopes and authenticate when you create the connection).
 
-## EveKit Architecture
+For each connection you create, the proxy will attempt to keep the access token refreshed each time you try to use the token (assuming the
+connection has not expired).
 
-The EveKit service consists of four main components:
+When you're ready to connect to the ESI, you'll use the proxy address in place of the ESI address.  That is, you'll replace `https://esi.tech.ccp.is/`
+with `https://esi-proxy.orbital.enterprises/`.
 
-1. At least one database instance to hold settings, accounts and model data.
-2. At least one instance of EveKit Frontend (this module) to allow users to login and set up accounts for synchronization.
-3. At least one instance of [EveKit Model Frontend](https://github.com/OrbitalEnterprises/evekit-model-frontend) to provide REST access to downloaded model data.
-4. A synchronization manager responsible for periodically downloading data for all eligible accounts.  There is currently one implementation provided, the [EveKit Standalone Synchronization Manager](https://github.com/OrbitalEnterprises/evekit-sync-mgr-standalone).
+The proxy supports all the same endpoints as the ESI.  So for example `https://esi.tech.ccp.is/latest/alliances/?datasource=tranquility`
+becomes `https://esi-proxy.orbital.enterprises/latest/alliances/?datasource=tranquility`.
 
-All data for EveKit is currently stored in a SQL database.  The public instance of EveKit uses MySQL, but any other database compatible with JDBC and Hibernate should work fine.  The EveKit Frontend and Model Frontend are stateless web services.  You can run as many instances of these services as you deem fit.  The synchronization manager may be implemented a number of different ways depending on your needs.  The EveKit Standalone Synchronization Manager is designed to be run as a single instance and will likely fail if multiple instances are run concurrently.  Other implementations are possible if measures are taken to ensure that synchronization managers synchronize properly on model data.
+If you're using an authenticated endpoint, you'll need to pass the appropriate key and hash from one of your connections.  For example
+`https://esi-proxy.orbital.enterprises/latest/characters/12345/assets/?datasource=tranquility&esiProxyKey=..yourkey..&esiProxyHash=..yourhash..`
 
-## Setting up an EveKit Standalone Instance
+If you're using a Swagger client, you'll need to make a similar replacement to generate the proper URL for swagger.json.  For example
+`https://esi.tech.ccp.is/latest/swagger.json?datasource=tranquility` becomes 
+`https://esi-proxy.orbital.enterprises/latest/swagger.json?datasource=tranquility`.
 
-Setting up your own instance of EveKit is straightforward and can easily be done on a relatively modest machine.  The steps are:
+Currently, the proxy supports all three available ESI servers ("legacy", "latest" and "dev"). However, we only regularly test against "latest".
 
-1. Create a database instance using your favorite JDBC and Hibernate compatible SQL database.  EveKit uses separate database connections for settings and model data.  However, it is perfectly fine to use the same underlying database instance for both connections.  You'll also need to create appropriate EveKit tables on your database instance.  This can be done in one of two ways:
+## Setting up your own proxy
+
+If you want to stand up your own proxy, you can do so on a relatively modest machine.  The steps are:
+
+1. Create a database instance using your favorite JDBC and Hibernate compatible SQL database.  You'll also need to create appropriate proxy tables on your database instance.  This can be done in one of two ways:
   1. Create the tables using the sample_schema.sql file in the top level directory of this module.  You may need to customize this file according to the format expected by your database vendor; or,
-  2. Let Hibernate create tables for you as needed.  This can be done by adding ```<property name="hibernate.hbm2ddl.auto" value="create"/>``` to each persistence.xml file.  **NOTE:** be careful with table name case if you develop on MySQL on both Windows and Linux (as I do).  Windows table names are case insensitive, but case matters on Linux.  In order to make things work correctly, I set "lower_case_table_names = 1" in my.cnf on Linux MySQL.
-2. Follow the instructions below to create an EveKit Frontend instance with access to your database instance.  You'll want to verify authentication works correctly with all the authentication modes you plan to support.  You'll also want to create at least one account for testing synchronization.
-3. Follow the instructions in [EveKit Standalone Synchronization Manager](https://github.com/OrbitalEnterprises/evekit-sync-mgr-standalone) to setup and run an instance of the synchronization manager, again using the database instance you just created.  If everything is working correctly, you should see the synchronization manager download appropriate data from the EVE Online servers, and you should see copies of this data in your database.  You should also be able to view synchronization status and history from your instance of EveKit Frontend.
-4. Follow the instructions in [EveKit Model Frontend](https://github.com/OrbitalEnterprises/evekit-model-frontend) to create an EveKit Model Frontend instance using your database instance.  After you've started your model frontend, you can configure your EveKit Frontend with the URL for the model frontend to allow browsing of model data directly from the API -> Model API page.
+  2. Let Hibernate create tables for you as needed.  This can be done by adding ```<property name="hibernate.hbm2ddl.auto" value="create"/>``` to your persistence.xml file.  **NOTE:** be careful with table name case if you develop on MySQL on both Windows and Linux (as I do).  Windows table names are case insensitive, but case matters on Linux.  In order to make things work correctly, I set "lower_case_table_names = 1" in my.cnf on Linux MySQL.
+2. Follow the instructions below to create an proxy instance with access to your database instance.  You'll want to verify authentication works correctly with EVE SSO Auth.  You can find instructions for that on CCP's site [here](https://eveonline-third-party-documentation.readthedocs.io/en/latest/sso/index.html).
 
-If everything has worked up to this point, then you now have a complete standalone instance of EveKit.
+If everything has worked up to this point, then you now have a complete standalone instance of the proxy.
 If you get stuck somewhere, or otherwise need help, you can ask question on the [Orbital Forum](https://groups.google.com/forum/#!forum/orbital-enterprises).
 
-# Building the EveKit Frontend
+# Building the proxy
 
 ## Configuration
 
-The EveKit frontend requires the setting and substitution of several parameters which control authentication, database and servlet settings.  Since the frontend is normally build with [Maven](http://maven.apache.org), configuration is handled by setting or overriding properties in your local Maven settings.xml fie.  The following configurations parameters should be set:
+The proxy requires the setting and substitution of several parameters which control authentication, database and servlet settings.  Since the frontend is normally built
+with [Maven](http://maven.apache.org), configuration is handled by setting or overriding properties in your local Maven settings.xml fie.  The following configurations
+parameters should be set:
 
 | Parameter | Meaning |
 |-----------|---------|
-|enterprises.orbital.evekit.frontend.basepath|The base location where the servlet is hosted, e.g. http://localhost:8080|
-|enterprises.orbital.evekit.frontend.appname|Name of the servlet when deployed|
-|enterprises.orbital.evekit.frontend.db.properties.url|Hibernate JDBC connection URL for properties|
-|enterprises.orbital.evekit.frontend.db.properties.user|Hibernate JDBC connection user name for properties|
-|enterprises.orbital.evekit.frontend.db.properties.password|Hibernate JDBC connection password for properties|
-|enterprises.orbital.evekit.frontend.db.properties.driver|Hibernate JDBC driver class name for properties|
-|enterprises.orbital.evekit.frontend.db.properties.dialect|Hibernate dialect class name for properties|
-|enterprises.orbital.evekit.frontend.db.account.url|Hibernate JDBC connection URL for account info|
-|enterprises.orbital.evekit.frontend.db.account.user|Hibernate JDBC connection user name for account info|
-|enterprises.orbital.evekit.frontend.db.account.password|Hibernate JDBC connection password for user info|
-|enterprises.orbital.evekit.frontend.db.account.driver|Hibernate JDBC driver class name for account info|
-|enterprises.orbital.evekit.frontend.db.account.dialect|Hibernate dialect class name for account info|
-|enterprises.orbital.evekit.snapshot.directory|Local directory where accout snapshots are stored|
-|enterprises.orbital.evekit.frontend.swaggerui.model|URL of the model frontend Swagger configuration, e.g. https://evekit-model.orbital.enterprises/api/swagger.json|
-|enterprises.orbital.auth.twitter_api_key|Twitter authentication key|
-|enterprises.orbital.auth.twitter_api_secret|Twitter authentication secret|
-|enterprises.orbital.auth.google_api_key|Google authentication key|
-|enterprises.orbital.auth.google_api_secret|Google authentication secret|
-|enterprises.orbital.auth.eve_client_id|EVE Online authentication ID|
-|enterprises.orbital.auth.eve_secret_key|EVE Online authentication secret|
-|enterprises.orbital.auth.eve_debug_mode|If true, then EVE Online authentication authenticates as a local debug account (always succeeds, useful for testing)|
+|enterprises.orbital.auth.eve_client_id|EVE Online SSO authentication ID|
+|enterprises.orbital.auth.eve_secret_key|EVE Online SSO authentication secret|
+|enterprises.orbital.db.properties.url|Hibernate JDBC connection URL|
+|enterprises.orbital.db.properties.user|Hibernate JDBC connection user name|
+|enterprises.orbital.db.properties.password|Hibernate JDBC connection password|
+|enterprises.orbital.swaggerui.model|URL for the proxy swagger config, e.g. https://esi-proxy.orbital.enterprises/api/swagger.json|
+|enterprises.orbital.basepath|The base location where the servlet is hosted, e.g. http://localhost:8080|
+|enterprises.orbital.appname|Name of the servlet when deployed|
+|enterprises.orbital.proxyHost|Proxy host (used to substitute in ESI swagger.json), e.g. esi-proxy.orbital.enterprises|
+|enterprises.orbital.proxyPort|Proxy port (used to substitute in ESI swagger.json), e.g. 443|
 
-As with all EveKit components, two database connections are required: one for retrieving general settings for system and user accounts; and, one for retrieving user account and model information.  These can be (and often are) the same database.
-
-EveKit authentication settings follow the conventions in the [Orbital OAuth](https://github.com/OrbitalEnterprises/orbital-oauth) module.  At time of writing, there is no configuration parameter for changing which methods of authentication are supported.  If you decide not to support all methods, you'll need to do a small amount of HTML repair to index.html to remove the login buttons you don't want to support.
+Proxy authentication settings follow the conventions in the [Orbital OAuth](https://github.com/OrbitalEnterprises/orbital-oauth) module.
 
 To make debugging easier, we've added the parameter "eve_debug_mode".  When set to true, authenticating with EVE Online will always succeed (EVE Online logger servers are never actually invoked), and the logged in user will be named "eveuser".  This mode allows you to develop and test when you're not connected to a network, or otherwise don't want to have to go through the usual authentication flow every time.
 
 At build and deploy time, the parameters above are substituted into the following files:
 
 * src/main/resources/META-INF/persistence.xml
-* src/main/resources/EveKitFrontend.properties
+* src/main/resources/ESIProxy.properties
 * src/main/webapp/WEB-INF/web.xml
 
 If you are not using Maven to build, you'll need to substitute these settings manually.
 
 ## Build
 
-We use [Maven](http://maven.apache.org) to build all EveKit modules.  EveKit dependencies are released and published to [Maven Central](http://search.maven.org/).  EveKit front ends are released but must be installed by cloning a repository.  To build the EveKit Frontend, clone this repository and use "mvn install".  Make sure you have set all required configuration parameters before building (as described in the previous section).
+We use [Maven](http://maven.apache.org) to build this module.  Proxy dependencies are released and published to [Maven Central](http://search.maven.org/),
+but we don't release the proxy itself.  Instead, clone this repository and use "mvn install".  Make sure you have set all required configuration parameters 
+before building (as described in the previous section).
 
 ## Deployment
 
@@ -121,8 +138,8 @@ This project is designed to easily deploy in a standard Servlet container.  Two 
 
 | Parameter | Meaning |
 |-----------|---------|
-|enterprises.orbital.evekit.frontend.basepath|The base location where the servlet is hosted, e.g. http://localhost:8080|
-|enterprises.orbital.evekit.frontend.appname|Name of the servlet when deployed|
+|enterprises.orbital.basepath|The base location where the servlet is hosted, e.g. http://localhost:8080|
+|enterprises.orbital.appname|Name of the servlet when deployed|
 
 If you follow the configuration and build instructions above, these parameters will be substituted for you.  These settings are used to define the base path for the REST API endpoints (via Swagger) needed for the frontend.
 
@@ -143,9 +160,9 @@ The default pom.xml in the project includes the [Tomcat Maven plugin](http://tom
   <profile>
     <id>LocalTomcat</id>
     <properties>
-      <enterprises.orbital.evekit.frontend.tomcat.url>http://127.0.0.1:8080/manager/text</enterprises.orbital.evekit.frontend.tomcat.url>
-      <enterprises.orbital.evekit.frontend.tomcat.server>LocalTomcatServer</enterprises.orbital.evekit.frontend.tomcat.server>
-      <enterprises.orbital.evekit.frontend.tomcat.path>/evekit</enterprises.orbital.evekit.frontend.tomcat.path>
+      <enterprises.orbital.tomcat.url>http://127.0.0.1:8080/manager/text</enterprises.orbital.tomcat.url>
+      <enterprises.orbital.tomcat.server>LocalTomcatServer</enterprises.orbital.tomcat.server>
+      <enterprises.orbital.tomcat.path>/evekit</enterprises.orbital.tomcat.path>
     </properties>	
   </profile>
 </profiles>

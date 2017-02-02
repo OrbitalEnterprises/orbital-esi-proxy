@@ -23,8 +23,6 @@
             <property name="hibernate.dialect" value="${enterprises.orbital.db.properties.dialect}"/>
             <property name="hibernate.show_sql" value="false" />
             <property name="hibernate.format_sql" value="false" />
-            <!-- Remove after testing -->
-            <!-- <property name="hibernate.hbm2ddl.auto" value="update"/> -->
             
             <property name="hibernate.c3p0.min_size" value="5"/>
             <property name="hibernate.c3p0.max_size" value="20"/>
