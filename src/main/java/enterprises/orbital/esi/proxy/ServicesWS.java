@@ -78,6 +78,8 @@ public class ServicesWS {
   public static final long    DEF_TEMP_STATE_LIFETIME  = TimeUnit.MILLISECONDS.convert(10, TimeUnit.MINUTES);
   public static final String  PROP_KEY_LIMIT           = "enterprises.orbital.esi.keyLimit";
   public static final long    DEF_KEY_LIMIT            = 100;
+  public static final String  PROP_RESTRICT_LOGIN      = "enterprises.orbital.esi.restrictLoginToAdmin";
+  public static final boolean DEF_RESTRICT_LOGIN       = false;
 
   // An in-memory object holding new access key state while the user authenticates with the
   // SSO. This data is purged periodically if for some reason the server fails to retrieve
@@ -273,7 +275,7 @@ public class ServicesWS {
       String eveVerifyURL = OrbitalProperties.getGlobalProperty("enterprises.orbital.auth.eve_verify_url");
       redirect = handleNewAccessKeyCallback(eveClientID, eveSecretKey, eveVerifyURL, builder.toString(), req);
       if (redirect != null)
-        // This was a valid new access key request which we completed. Return the redirect.
+        // We handled this request in the new access key handler. Return the redirect.
         return Response.temporaryRedirect(new URI(redirect)).build();
       // Otherwise, continue to process as if this is a regular login request
       redirect = EVECallbackHandler.doGet(eveClientID, eveSecretKey, eveVerifyURL, builder.toString(), req);
@@ -645,7 +647,7 @@ public class ServicesWS {
                                                      String verifyURL,
                                                      String callback,
                                                      HttpServletRequest req)
-    throws IOException {
+    throws IOException, URISyntaxException {
 
     // This is a new access key request if the state field is present and valid
     String stateKey = req.getParameter("state");
@@ -662,6 +664,10 @@ public class ServicesWS {
     // Resolve the user in the cached state. Error if we can't resolve.
     ProxyUserAccount user = ProxyUserAccount.getAccount(cachedState.uid);
     if (user == null) return null;
+
+    // Check whether we're only allowing admins
+    if (OrbitalProperties.getBooleanGlobalProperty(PROP_RESTRICT_LOGIN, DEF_RESTRICT_LOGIN)
+        && !user.isAdmin()) { return makeErrorCallback(req, "Only administrative accounts are allowed to create access keys, sorry!"); }
 
     // Construct the service to use for verification.
     OAuth20Service service = new ServiceBuilder().apiKey(clientID).apiSecret(secretKey).build(EVEApi.instance());

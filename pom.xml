@@ -31,6 +31,8 @@
     <enterprises.orbital.access_key_limit>10</enterprises.orbital.access_key_limit>
     <enterprises.orbital.esi.proxy.keyName>esiProxyKey</enterprises.orbital.esi.proxy.keyName>
     <enterprises.orbital.esi.proxy.hashName>esiProxyHash</enterprises.orbital.esi.proxy.hashName>
+    <enterprises.orbital.esi.trustStore></enterprises.orbital.esi.trustStore>
+    <enterprises.orbital.esi.trustPass></enterprises.orbital.esi.trustPass>
     <!-- Dependency versions -->
     <http.proxy.version>1.8</http.proxy.version>
     <orbital.oauth.version>2.2.0</orbital.oauth.version>

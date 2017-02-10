@@ -113,9 +113,9 @@ public class ESIProxyServlet extends ProxyServlet {
     // we'll refresh the token before making a request.
     expiryWindow = OrbitalProperties.getLongGlobalProperty(PROP_EXPIRY_WINDOW, DEF_EXPIRY_WINDOW);
     // If your setup requires a specific trust store you can configure that here.
-    if (OrbitalProperties.getGlobalProperty(PROP_TRUST_STORE) != null) {
+    if (!OrbitalProperties.getGlobalProperty(PROP_TRUST_STORE, "").isEmpty()) {
       System.setProperty("javax.net.ssl.trustStore", OrbitalProperties.getGlobalProperty(PROP_TRUST_STORE));
-      if (OrbitalProperties.getGlobalProperty(PROP_TRUST_STORE_PASS) != null)
+      if (!OrbitalProperties.getGlobalProperty(PROP_TRUST_STORE_PASS, "").isEmpty())
         System.setProperty("javax.net.ssl.trustStorePassword", OrbitalProperties.getGlobalProperty(PROP_TRUST_STORE_PASS));
       SSLContext sslcontext = SSLContexts.createSystemDefault();
       RegistryBuilder.<ConnectionSocketFactory> create().register("http", PlainConnectionSocketFactory.INSTANCE)

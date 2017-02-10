@@ -58,26 +58,24 @@ If all else fails, you can directly revoke any access tokens you've granted to t
 
 ## How do I use the proxy?
 
-If you're using our instance, you'll find instructions on the main page [here](https://esi-proxy.orbital.enterprises).  The instructions amount to the following:
+Once you standup an instance of the proxy (see instructions below), you can configure access as follows:
 
-1. Log in to the proxy website (this is standard EVE OAuth athentication).
+1. Log in to the proxy website (this is standard EVE OAuth authentication using your configured client and secret key).
 2. Go to the "Connections" page and create a connection (you'll specify scopes and authenticate when you create the connection).
 
 For each connection you create, the proxy will attempt to keep the access token refreshed each time you try to use the token (assuming the
 connection has not expired).
 
 When you're ready to connect to the ESI, you'll use the proxy address in place of the ESI address.  That is, you'll replace `https://esi.tech.ccp.is/`
-with `https://esi-proxy.orbital.enterprises/`.
-
-The proxy supports all the same endpoints as the ESI.  So for example `https://esi.tech.ccp.is/latest/alliances/?datasource=tranquility`
-becomes `https://esi-proxy.orbital.enterprises/latest/alliances/?datasource=tranquility`.
+with `https://your.proxys.address/`.  The proxy supports all the same endpoints as the ESI.  So for example `https://esi.tech.ccp.is/latest/alliances/?datasource=tranquility`
+becomes `https://your.proxys.address/latest/alliances/?datasource=tranquility`.
 
 If you're using an authenticated endpoint, you'll need to pass the appropriate key and hash from one of your connections.  For example
-`https://esi-proxy.orbital.enterprises/latest/characters/12345/assets/?datasource=tranquility&esiProxyKey=..yourkey..&esiProxyHash=..yourhash..`
+`https://your.proxys.address/latest/characters/12345/assets/?datasource=tranquility&esiProxyKey=..yourkey..&esiProxyHash=..yourhash..`
 
 If you're using a Swagger client, you'll need to make a similar replacement to generate the proper URL for swagger.json.  For example
 `https://esi.tech.ccp.is/latest/swagger.json?datasource=tranquility` becomes 
-`https://esi-proxy.orbital.enterprises/latest/swagger.json?datasource=tranquility`.
+`https://your.proxys.address/latest/swagger.json?datasource=tranquility`.
 
 Currently, the proxy supports all three available ESI servers ("legacy", "latest" and "dev"). However, we only regularly test against "latest".
 
@@ -85,33 +83,33 @@ Currently, the proxy supports all three available ESI servers ("legacy", "latest
 
 If you want to stand up your own proxy, you can do so on a relatively modest machine.  The steps are:
 
-1. Create a database instance using your favorite JDBC and Hibernate compatible SQL database.  You'll also need to create appropriate proxy tables on your database instance.  This can be done in one of two ways:
+1. Obtain an EVE SSO OAuth client key and secret at the [EVE Developers site](https://developers.eveonline.com/).
+2. Create a database instance using your favorite JDBC and Hibernate compatible SQL database.  You'll also need to create appropriate proxy tables on your database instance.  This can be done in one of two ways:
   1. Create the tables using the sample_schema.sql file in the top level directory of this module.  You may need to customize this file according to the format expected by your database vendor; or,
   2. Let Hibernate create tables for you as needed.  This can be done by adding ```<property name="hibernate.hbm2ddl.auto" value="create"/>``` to your persistence.xml file.  **NOTE:** be careful with table name case if you develop on MySQL on both Windows and Linux (as I do).  Windows table names are case insensitive, but case matters on Linux.  In order to make things work correctly, I set "lower_case_table_names = 1" in my.cnf on Linux MySQL.
-2. Follow the instructions below to create an proxy instance with access to your database instance.  You'll want to verify authentication works correctly with EVE SSO Auth.  You can find instructions for that on CCP's site [here](https://eveonline-third-party-documentation.readthedocs.io/en/latest/sso/index.html).
+3. Follow the instructions below to create an proxy instance with access to your database instance.  You'll want to verify authentication works correctly with EVE SSO Auth.  You can find instructions for that on CCP's site [here](https://eveonline-third-party-documentation.readthedocs.io/en/latest/sso/index.html).
 
 If everything has worked up to this point, then you now have a complete standalone instance of the proxy.
-If you get stuck somewhere, or otherwise need help, you can ask question on the [Orbital Forum](https://groups.google.com/forum/#!forum/orbital-enterprises).
 
 # Building the proxy
 
 ## Configuration
 
 The proxy requires the setting and substitution of several parameters which control authentication, database and servlet settings.  Since the frontend is normally built
-with [Maven](http://maven.apache.org), configuration is handled by setting or overriding properties in your local Maven settings.xml fie.  The following configurations
+with [Maven](http://maven.apache.org), configuration is handled by setting or overriding properties in your local Maven settings.xml file.  The following configurations
 parameters should be set:
 
 | Parameter | Meaning |
 |-----------|---------|
-|enterprises.orbital.auth.eve_client_id|EVE Online SSO authentication ID|
+|enterprises.orbital.auth.eve_client_id|EVE Online SSO authentication client ID|
 |enterprises.orbital.auth.eve_secret_key|EVE Online SSO authentication secret|
 |enterprises.orbital.db.properties.url|Hibernate JDBC connection URL|
 |enterprises.orbital.db.properties.user|Hibernate JDBC connection user name|
 |enterprises.orbital.db.properties.password|Hibernate JDBC connection password|
-|enterprises.orbital.swaggerui.model|URL for the proxy swagger config, e.g. https://esi-proxy.orbital.enterprises/api/swagger.json|
+|enterprises.orbital.swaggerui.model|URL for the proxy swagger config, e.g. https://your.proxys.address/api/swagger.json|
 |enterprises.orbital.basepath|The base location where the servlet is hosted, e.g. http://localhost:8080|
 |enterprises.orbital.appname|Name of the servlet when deployed|
-|enterprises.orbital.proxyHost|Proxy host (used to substitute in ESI swagger.json), e.g. esi-proxy.orbital.enterprises|
+|enterprises.orbital.proxyHost|Proxy host (used to substitute in ESI swagger.json), e.g. your.proxys.address|
 |enterprises.orbital.proxyPort|Proxy port (used to substitute in ESI swagger.json), e.g. 443|
 
 Proxy authentication settings follow the conventions in the [Orbital OAuth](https://github.com/OrbitalEnterprises/orbital-oauth) module.
@@ -178,4 +176,4 @@ If you've already deployed, use "redploy" instead.  See the [Tomcat Maven plugin
 
 ## Getting Help
 
-The best place to get help is on the [Orbital Forum](https://groups.google.com/forum/#!forum/orbital-enterprises).
+The best way to get help is to raise an issue in our [GitHub project](https://github.com/OrbitalEnterprises/orbital-esi-proxy).
