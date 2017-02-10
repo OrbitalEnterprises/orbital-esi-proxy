@@ -163,9 +163,16 @@ public class ServicesWS {
                                             HttpServletRequest req,
                                             String source)
     throws MalformedURLException, URISyntaxException {
+    return makeGenericErrorCallback(req,
+                                    "Error while authenticating with " + source + ".  Please retry.  If the problem perists, please contact the site admin.");
+  }
+
+  protected static String makeGenericErrorCallback(
+                                                   HttpServletRequest req,
+                                                   String msg)
+    throws MalformedURLException, URISyntaxException {
     URIBuilder builder = makeStandardBuilder(req);
-    builder.addParameter("auth_error",
-                         "Error while authenticating with " + source + ".  Please retry.  If the problem perists, please contact the site admin.");
+    builder.addParameter("auth_error", msg);
     return builder.toString();
   }
 
@@ -667,7 +674,7 @@ public class ServicesWS {
 
     // Check whether we're only allowing admins
     if (OrbitalProperties.getBooleanGlobalProperty(PROP_RESTRICT_LOGIN, DEF_RESTRICT_LOGIN)
-        && !user.isAdmin()) { return makeErrorCallback(req, "Only administrative accounts are allowed to create access keys, sorry!"); }
+        && !user.isAdmin()) { return makeGenericErrorCallback(req, "Only administrative accounts are allowed to create access keys, sorry!"); }
 
     // Construct the service to use for verification.
     OAuth20Service service = new ServiceBuilder().apiKey(clientID).apiSecret(secretKey).build(EVEApi.instance());
