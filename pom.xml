@@ -33,6 +33,7 @@
     <enterprises.orbital.esi.proxy.hashName>esiProxyHash</enterprises.orbital.esi.proxy.hashName>
     <enterprises.orbital.esi.trustStore></enterprises.orbital.esi.trustStore>
     <enterprises.orbital.esi.trustPass></enterprises.orbital.esi.trustPass>
+    <enterprises.orbital.esi.restrictLoginToAdmin>false</enterprises.orbital.esi.restrictLoginToAdmin>
     <!-- Dependency versions -->
     <http.proxy.version>1.8</http.proxy.version>
     <orbital.oauth.version>2.2.0</orbital.oauth.version>
