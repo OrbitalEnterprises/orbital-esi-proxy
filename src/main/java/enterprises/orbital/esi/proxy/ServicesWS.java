@@ -57,7 +57,7 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 
 /**
- * API for authentication, authentication with scopes, creating connection keys, and and logging out.
+ * API for authentication, authentication with scopes, creating connection keys, and logging out.
  */
 @Path("/ws")
 @Produces({
