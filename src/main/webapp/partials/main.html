@@ -9,19 +9,6 @@
       <div class="panel-body col-extend">
       Welcome to the ESI Proxy service!<p>
       
-      <p style="padding: 5px 5px 5px 5px; color: black; font-weight: bold; background-color: #ff9999">
-      Unfortunately, for liability reasons I've had to lock this site down to a very
-      select few individuals I'm willing to take responsibility for.  According to CCP's
-      third party developer license, I'm responsible for any traffic that passes through
-      this proxy and hits their servers.  That's very difficult for me to police, so I can't
-      offer this proxy as a general service.  You'll be able to login to the site, but you
-      won't be able to create an access key unless I'm willing to vet your access.<br><br>
-      
-      If you're interested in setting up your own instance of the proxy, see the
-      instructions on our 
-      <a href="https://github.com/OrbitalEnterprises/orbital-esi-proxy">GitHub project page</a>.
-      </p>
-      
       The goal of this site is to provide access to the authenticated
       endpoints of the ESI <strong>without</strong> requiring the usual OAuth authentication flow.
       Some potential uses of this site:<p>
@@ -82,18 +69,18 @@
       
       The proxy supports the same Swagger interface as the ESI servers except that the host is different, and the two query parameters are required
       for authenticated endpoints.  If you're using ESI URIs directly, you simply need to replace <code>https://esi.tech.ccp.is/</code>
-      with <code>https://esi-proxy.orbital.enterprises/</code>.  If you're using a Swagger client, you need to make a similar replacement
+      with <code>${enterprises.orbital.basepath}/${enterprises.orbital.appname}/</code>.  If you're using a Swagger client, you need to make a similar replacement
       in order to generate the proper URL for the Swagger config.  For example, <code>https://esi.tech.ccp.is/latest/swagger.json?datasource=tranquility</code>
-      becomes <code>https://esi-proxy.orbital.enterprises/latest/swagger.json?datasource=tranquility</code>.
+      becomes <code>${enterprises.orbital.basepath}/${enterprises.orbital.appname}/latest/swagger.json?datasource=tranquility</code>.
       
       Currently, the proxy supports all three available ESI servers ("legacy", "latest" and "dev").  However, we only regularly test against "latest".
       
       You can use these three links to jump to the Swagger UI pointing to the proxy (don't forget to "Authorize" with your key and hash from above):
       
       <ul>
-      <li> <a href="http://petstore.swagger.io/?url=https://esi-proxy.orbital.enterprises/latest/swagger.json">LATEST</a>
-      <li> <a href="http://petstore.swagger.io/?url=https://esi-proxy.orbital.enterprises/legacy/swagger.json">LEGACY</a>
-      <li> <a href="http://petstore.swagger.io/?url=https://esi-proxy.orbital.enterprises/dev/swagger.json">DEV</a>
+      <li> <a href="http://petstore.swagger.io/?url=${enterprises.orbital.basepath}/${enterprises.orbital.appname}/latest/swagger.json">LATEST</a>
+      <li> <a href="http://petstore.swagger.io/?url=${enterprises.orbital.basepath}/${enterprises.orbital.appname}/legacy/swagger.json">LEGACY</a>
+      <li> <a href="http://petstore.swagger.io/?url=${enterprises.orbital.basepath}/${enterprises.orbital.appname}/dev/swagger.json">DEV</a>
       </ul>
             
       </div>

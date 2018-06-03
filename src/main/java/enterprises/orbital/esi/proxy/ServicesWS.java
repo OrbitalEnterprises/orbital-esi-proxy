@@ -80,6 +80,8 @@ public class ServicesWS {
   public static final long    DEF_KEY_LIMIT            = 100;
   public static final String  PROP_RESTRICT_LOGIN      = "enterprises.orbital.esi.restrictLoginToAdmin";
   public static final boolean DEF_RESTRICT_LOGIN       = false;
+  public static final String  PROP_ESI_HOME            = "enterprises.orbital.esi.home";
+  public static final String  DEF_ESI_HOME             = "esi.evetech.net";
 
   // An in-memory object holding new access key state while the user authenticates with the
   // SSO. This data is purged periodically if for some reason the server fails to retrieve
@@ -748,7 +750,8 @@ public class ServicesWS {
     // Retrieve swagger.json from server
     JsonObject data = null;
     try {
-      URL target = new URL("https://esi.tech.ccp.is/" + server + "/swagger.json");
+      String esiHome = OrbitalProperties.getGlobalProperty(PROP_ESI_HOME, DEF_ESI_HOME);
+      URL target = new URL("https://" + esiHome + "/" + server + "/swagger.json");
       HttpURLConnection conn;
       conn = (HttpURLConnection) target.openConnection();
       conn.setUseCaches(true);

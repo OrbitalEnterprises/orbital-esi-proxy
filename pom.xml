@@ -34,6 +34,7 @@
     <enterprises.orbital.esi.trustStore></enterprises.orbital.esi.trustStore>
     <enterprises.orbital.esi.trustPass></enterprises.orbital.esi.trustPass>
     <enterprises.orbital.esi.restrictLoginToAdmin>false</enterprises.orbital.esi.restrictLoginToAdmin>
+    <enterprises.orbital.esi.home>esi.evetech.net</enterprises.orbital.esi.home>
     <!-- Dependency versions -->
     <http.proxy.version>1.8</http.proxy.version>
     <orbital.oauth.version>2.2.0</orbital.oauth.version>
@@ -70,13 +71,8 @@
               <includes>
                 <include>**/web.xml</include>
                 <include>**/index.html</include>
+		<include>**/main.html</include>
                 <include>**/swagger.html</include>
-                <include>**/swagger-ref.html</include>
-                <include>**/swagger-xmlproxy.html</include>
-                <include>**/swagger-marketdata.html</include>
-                <include>**/xmlproxy-main.html</include>
-                <include>**/api-page.js</include>
-                <include>**/md-page.js</include>
               </includes>
             </resource>
           </webResources>

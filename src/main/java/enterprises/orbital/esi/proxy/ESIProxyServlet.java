@@ -72,13 +72,15 @@ public class ESIProxyServlet extends ProxyServlet {
   private static final String PROP_TRUST_STORE_PASS = "enterprises.orbital.esi.trustPass";
   private static final String PROP_APP_NAME         = "enterprises.orbital.appname";
   private static final String PROP_EXPIRY_WINDOW    = "enterprises.orbital.expiryWindow";
-
+  private static final String PROP_ESI_HOME         = "enterprises.orbital.esi.home";
+    
   private static final String DEF_PROXY_HOST        = "localhost";
   private static final int    DEF_PROXY_PORT        = 8080;
   private static final String DEF_PROXY_KEY_NAME    = "esiProxyKey";
   private static final String DEF_PROXY_HASH_NAME   = "esiProxyHash";
   private static final String DEF_APP_NAME          = "";
   private static final long   DEF_EXPIRY_WINDOW     = TimeUnit.MILLISECONDS.convert(3, TimeUnit.MINUTES);
+  private static final String DEF_ESI_HOME          = "esi.evetech.net";
   private static final String ATTR_QUERY_STRING     = URITemplateProxyServlet.class.getSimpleName() + ".queryString";
   private static final String ATTR_SWAGGER_CONFIG   = ESIProxyServlet.class.getSimpleName() + ".swaggerConfig";
   private static final String ATTR_AUTH_HEADER      = ESIProxyServlet.class.getSimpleName() + ".authHeader";
@@ -91,12 +93,15 @@ public class ESIProxyServlet extends ProxyServlet {
   protected String            proxySecurity;
   protected String            servletPath;
   protected long              expiryWindow;
+  protected String            esiHome;
 
   /**
    * Setup.
    */
   @Override
   protected void initTarget() throws ServletException {
+    // Configure location of ESI
+    esiHome = OrbitalProperties.getGlobalProperty(PROP_ESI_HOME, DEF_ESI_HOME);
     // Host and port represent the local host and port for the proxy
     proxyHost = OrbitalProperties.getGlobalProperty(PROP_PROXY_HOST, DEF_PROXY_HOST);
     proxyPort = (int) OrbitalProperties.getLongGlobalProperty(PROP_PROXY_PORT, DEF_PROXY_PORT);
@@ -150,7 +155,7 @@ public class ESIProxyServlet extends ProxyServlet {
     if (pathPart.endsWith("swagger.json")) {
       log("Intercepting swagger.json");
       // Forward then translate the result
-      servletRequest.setAttribute(ATTR_TARGET_HOST, new HttpHost("esi.tech.ccp.is", 443, "https"));
+      servletRequest.setAttribute(ATTR_TARGET_HOST, new HttpHost(esiHome, 443, "https"));
       servletRequest.setAttribute(ATTR_TARGET_URI, contextPath);
       servletRequest.setAttribute(ATTR_SWAGGER_CONFIG, true);
       super.service(servletRequest, servletResponse);
@@ -236,7 +241,7 @@ public class ESIProxyServlet extends ProxyServlet {
     }
 
     // Re-attach query string and forward request
-    servletRequest.setAttribute(ATTR_TARGET_HOST, new HttpHost("esi.tech.ccp.is", 443, "https"));
+    servletRequest.setAttribute(ATTR_TARGET_HOST, new HttpHost(esiHome, 443, "https"));
     servletRequest.setAttribute(ATTR_TARGET_URI, contextPath);
 
     // Determine the new query string based on removing the used names
